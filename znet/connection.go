@@ -95,8 +95,7 @@ func (c *Connection) Stop() {
 }
 
 func (c *Connection) GetTCPConnection() *net.TCPConn {
-	//TODO implement me
-	panic("implement me")
+	return c.Conn
 }
 
 func (c *Connection) GetConnID() uint32 {
@@ -108,6 +107,5 @@ func (c *Connection) RemoteAddr() net.Addr {
 }
 
 func (c *Connection) Send(data []byte) error {
-	//TODO implement me
-	panic("implement me")
+	return nil
 }
