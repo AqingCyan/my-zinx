@@ -16,21 +16,21 @@ type Connection struct {
 	// 当前链接状态
 	isClosed bool
 
-	// 当前链接所绑定的处理业务的方法 API
-	handleAPI ziface.HandleFunc
-
 	// 告知当前链接已经停止/推出的 channel
 	ExitChan chan bool
+
+	// 该链接处理的方法 Router
+	Router ziface.IRouter
 }
 
 // NewConnection 初始化链接模块的方法
-func NewConnection(conn *net.TCPConn, connId uint32, callbackApi ziface.HandleFunc) *Connection {
+func NewConnection(conn *net.TCPConn, connId uint32, router ziface.IRouter) *Connection {
 	c := &Connection{
-		Conn:      conn,
-		ConnId:    connId,
-		handleAPI: callbackApi,
-		isClosed:  false,
-		ExitChan:  make(chan bool, 1),
+		Conn:     conn,
+		ConnId:   connId,
+		Router:   router,
+		isClosed: false,
+		ExitChan: make(chan bool, 1),
 	}
 	return c
 }
@@ -45,17 +45,24 @@ func (c *Connection) StartReader() {
 	for {
 		// 读取客户端的数据到 buf 中，目前最大是 512 字节
 		buf := make([]byte, 512)
-		cnt, err := c.Conn.Read(buf)
+		_, err := c.Conn.Read(buf)
 		if err != nil {
 			fmt.Println("Receive buf err", err)
 			break
 		}
 
-		// 调用当前链接所绑定的 HandleAPI
-		if err := c.handleAPI(c.Conn, buf, cnt); err != nil {
-			fmt.Println("ConnId", c.ConnId, "handle is error", err)
-			break
+		// 得到当前 conn 数据的 Request 请求数据
+		req := Request{
+			conn: c,
+			data: buf,
 		}
+
+		// 从路由中找到注册绑定的 Conn 对应的 router 调用
+		go func(request ziface.IRequest) {
+			c.Router.PreHandle(request)
+			c.Router.Handle(request)
+			c.Router.PostHandle(request)
+		}(&req)
 	}
 }
 
